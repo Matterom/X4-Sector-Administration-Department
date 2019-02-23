@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SectorAdminConv" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="L:\SteamLibrary\steamapps\common\X4 Foundations\Loose Files\md\md.xsd">
+	<cues>
+		<cue name="SecAdminRoot" instantiate="true">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="m_Sec" />
+					<event_conversation_returned_to_section sectionprefix="m_Sec" />
+				</check_any>
+			</conditions>
+			<actions>
+				<set_value name="$actor" exact="event.object"/>
+				<debug_text text="$actor + ' m_SecAdmin, params: ' + event.param2 " filter="general"/>
+				<!--Process Params-->
+				<do_if value="@event.param2.{2} == 'assign'">
+					<signal_objects object="$actor.sector" param="'SecAdmin_Ass'" param2="$actor"/>
+					<set_value name="$actor.container.controlentity.{controlpost.manager}.$SecAdmin" exact="$actor.container.controlentity.{controlpost.manager}"/>
+					<set_value name="$index" exact="'pg1'"/>
+				</do_if>
+				<do_elseif value="@event.param2.{2} == 'pg2'">
+					<set_value name="$index" exact="'pg2'"/>
+				</do_elseif>
+				<do_else>
+					<set_value name="$index" exact="'pg1'"/>
+				</do_else>
+				
+				
+				<!--Build Chat Tree-->
+				<do_if value="$index == 'pg1'">
+					<do_if value="@$actor.$SecAdmin == $actor">
+						<!--IF i am the Sector Administrator, List options, Rethink asignment-->
+						<add_player_choice position="top_right" comment="Unassign as admin" section="m_SecAdmin" text="'Unassign ' + $actor.name + ' as Sector Administrator'" choiceparam="[$actor]"/>
+						<add_player_choice_sub position="top_left" comment="Tax Options" text="'Tax Menu'" section="sato_SecAdmin" choiceparam="[$actor]"/>
+						<add_player_choice_sub position="left" comment="General Options" text="'General Options'" section="sago_SecAdmin" choiceparam="[$actor]" selectable="false"/>
+					</do_if>
+					<do_elseif value=" not $actor.$SecAdmin? and ($actor.sector.owner == faction.player)">
+						<!--If the Sector Administrator does not Exist, List option to assin as one-->
+						<add_player_choice position="top_right" comment="Assign as Admin" text="'Assign ' + $actor.name + ' as Sector Administrator'" section="m_SecAdmin" choiceparam="[$actor, 'assign']" />
+					</do_elseif>
+					<do_else>
+						<!--If the Sector administrator Exists, regardless of faction-->
+						<!--TODO Think of something to go here-->
+						<add_player_choice_sub position="top_left" comment="Options for disruption" text="'Insurection Options TODO'" section="saio_SecAdmin" choiceparam="[$actor]" selectable="false" />
+					</do_else>
+					<add_player_choice position="right" comment="more" text="'More..'" section="m_SecAdmin" choiceparam="[$actor, $index]" selectable="false"/>
+					<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" section="default" choiceparam="[$actor]" />
+				</do_if>
+			</actions>
+		</cue>
+
+		<cue name="SecAdminTaxOptions" instantiate="true" namespace="this">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="sato_Sec" />
+					<event_conversation_returned_to_section sectionprefix="sato_Sec" />
+				</check_any>
+
+			</conditions>
+			<actions>
+				<!--
+					1. Property Tax Rate + current rate
+					2. Sales Tax Rate + current rate
+					3. Faction Tax Rate menu
+					4. Ware Tax Rate Mod menu
+					5. Services Tax Rate Mod menu
+					6. Back
+				-->	
+				<set_value name="$actor" exact="event.object"/>
+				<debug_text text="$actor + ' sato_SecAdmin, params: ' + event.param2 " filter="general"/>
+
+				
+				<add_player_choice_sub position="top_left" comment="Property Tax Rate" text="'Property Tax Rate: ' + '%1%%'.[global.$taxtable.{faction.player}.$prop * 100]" section="sapr_SecAdmin" choiceparam="[$actor]"/>
+				<add_player_choice_sub position="left" comment="Transaction Tax Rate" text="'Sales Tax Rate: ' + '%1%%'.[global.$taxtable.{faction.player}.$sales * 100]" section="sasr_SecAdmin" choiceparam="[$actor]" />
+				
+				<!--TODO-->
+				<add_player_choice_sub position="bottom_left" comment="Faction Tax Rate" text="'Faction Tariff Options TODO'" choiceparam="[$actor]" selectable="false"/>
+				<add_player_choice_sub position="top_right" comment="Ware Tax Rate" text="'Ware Tariff Options TODO'" choiceparam="[$actor]" selectable="false"/>
+				<!--add_player_choice position="top_left" comment="Service Tax Rate" /-->
+
+				<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" choiceparam="[$actor]" section="m_SecAdmin" />
+			</actions>
+		</cue>
+		
+		<cue name="SecAdminPropRate" instantiate="true" namespace="this">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section section="sapr_SecAdmin" />
+					<event_conversation_returned_to_section section="sapr_SecAdmin" />
+				</check_any>
+
+			</conditions>
+			<actions>
+				<set_value name="$actor" exact="event.object"/>
+				<debug_text text="$actor + ' sapr_SecAdmin, params: ' + event.param2 " filter="general"/>
+
+				
+				<do_if value="@event.param2.count gt 1">
+					<do_if value="event.param2.{2} == 'up_tax'">
+						<set_value name="global.$taxtable.{faction.player}.$prop" exact="0.0001" operation="add"/>
+						<set_value name="$taxrate" exact="global.$taxtable.{faction.player}.$prop"/>
+					</do_if>
+					<do_elseif value="event.param2.{2} == 'down_tax'">
+						<set_value name="global.$taxtable.{faction.player}.$prop" exact="0.0001" operation="subtract"/>
+						<set_value name="$taxrate" exact="global.$taxtable.{faction.player}.$prop"/>
+					</do_elseif>
+				</do_if>
+				<do_else>
+					<set_value name="$taxrate" exact="global.$taxtable.{faction.player}.$prop"/>
+				</do_else>
+				
+				<!--
+					1.Increase Tax 
+					2.Display Tax
+					3.Decrease Tax
+					4.
+					5.Display Risk?
+					6.Back
+					
+					Tax min 0, Tax Max 0.1 step 0.005
+										-->
+				<add_player_choice position="top_left" comment="increase tax" text="'Increase Tax'" section="sapr_SecAdmin" selectable="if ($taxrate + 0.0001) gt 0.01 then false else true" choiceparam="[$actor, 'up_tax']"/>
+				<add_player_choice position="left" comment="current tax" text="'Current Property Tax Rate: ' + '%1%%'.[$taxrate * 100]" selectable="false"/>
+				<add_player_choice position="bottom_left" comment="Decrease tax" text="'Decrease Tax'" section="sapr_SecAdmin" selectable="if ($taxrate + 0.0001) lt 0.0 then false else true"  choiceparam="[$actor, 'down_tax']"/>
+				
+				<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" section="sato_SecAdmin" choiceparam="[$actor]" />
+
+			</actions>
+		</cue>
+
+		<cue name="SecAdminSalesRate" instantiate="true" namespace="this">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="sasr_Sec" />
+					<event_conversation_returned_to_section sectionprefix="sasr_Sec" />
+				</check_any>
+			</conditions>
+			<actions>
+				<set_value name="$actor" exact="event.object"/>
+				<debug_text text="$actor + ' sasr_SecAdmin, params: ' + event.param2 " filter="general"/>
+
+				
+				<do_if value="@event.param2.count gt 1">
+					<do_if value="event.param2.{2} == 'up_tax'">
+						<set_value name="global.$taxtable.{faction.player}.$sales" exact="0.0001" operation="add"/>
+						<set_value name="$taxrate" exact="global.$taxtable.{faction.player}.$sales"/>
+					</do_if>
+					<do_elseif value="event.param2.{2} == 'down_tax'">
+						<set_value name="global.$taxtable.{faction.player}.$sales" exact="0.0001" operation="subtract"/>
+						<set_value name="$taxrate" exact="global.$taxtable.{faction.player}.$sales"/>
+					</do_elseif>
+				</do_if>
+				<do_else>
+					<set_value name="$taxrate" exact="global.$taxtable.{faction.player}.$sales"/>
+				</do_else>
+				
+				<!--
+					1.Increase Tax 
+					2.Display Tax
+					3.Decrease Tax
+					4.
+					5.Display Risk?
+					6.Back
+					
+					Tax min 0, Tax Max 0.1 step 0.005
+										-->
+				<add_player_choice position="top_left" comment="increase tax" text="'Increase Tax'" section="sasr_SecAdmin" selectable="if ($taxrate + 0.0001) gt 0.01 then false else true" choiceparam="[$actor, 'up_tax']"/>
+				<add_player_choice position="left" comment="current tax" text="'Current Salse Tax Rate: ' + '%1%%'.[$taxrate * 100]" selectable="false"/>
+				<add_player_choice position="bottom_left" comment="Decrease tax" text="'Decrease Tax'" section="sasr_SecAdmin" selectable=" if($taxrate + 0.0001) lt 0.0 then false else true"  choiceparam="[$actor, 'down_tax']"/>
+				<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" section="sato_SecAdmin" choiceparam="[$actor]" />
+
+			</actions>
+		</cue>
+		
+		<cue name="SecAdminGenOptions" instantiate="true" namespace="this">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="sago_Sec" />
+					<event_conversation_returned_to_section sectionprefix="sago_Sec" />
+				</check_any>
+			</conditions>
+			<actions>
+			
+			</actions>
+		</cue>
+		
+		
+		<cue name="SecAdminInsecOptions" instantiate="true" namespace="this">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="saio_SecAdmin" />
+					<event_conversation_returned_to_section sectionprefix="saio_SecAdmin" />
+				</check_any>
+			</conditions>
+			<actions>
+			
+			</actions>
+		</cue>
+	</cues>
+</mdscript>		
+		

@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<aiscript name="administration.station" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="..\..\..\Loose Files\aiscripts\aiscripts.xsd" version="1" priority="2">
+	<params>
+		<param name="debugchance" default="100"/>
+	</params>
+	<init>
+		<!--Set Initiating Values For now this should only trigger for players-->
+		<!--Rework TODO-->
+		<!--Local Stations-->
+		<do_if value="not this.$LocalSTable?">
+			<set_value name="this.$LocalSTable" exact="table[]" />
+		</do_if>
+		<!--Local Owned Stations-->
+		<do_if value="not this.$LocalOTable?">
+			<set_value name="this.$LocalOTable" exact="table[]" />
+		</do_if>
+		<!--set_value name="$SubRestock" exact="0" />
+		<set_value name="$SubTable" exact="table[]" />
+		<set_value name="$FacTax" exact="0" />
+		<set_value name="$MineFields" exact="0" />
+		<set_value name="$LaserTowers" exact="0" />
+		<set_value name="$Drones" exact="0" />
+		<set_value name="$Sats" exact="0" /-->
+		<!--
+		Budget determines the basic operating budget of the sector for purposes of determining overflow.
+			The Total is the size of the current budget.
+			Substation is a table of every station and their operating budgets and Subordinates, These will be restocked by this station
+			SubStationReleif is the overflow to be used to support a substation's cashflow problems. Default 100k per production station, 1M for Secondary Defense Stations, and 10M for Shipyards and Trade Stations.
+			SubShipRF or, Subordinate Ship Restock Funds. This is set to be the value rounded up of the most expensive subordinate ship under the command of this or any subordinate station.
+			DefenseB or Defense Budget. This is how much goes into the restocking and Resuplying of certain defense features per Budget Cylce, up to a cap.
+											-->
+		<!--set_value name="$Budget" exact="table[
+			{$Total} = 0,
+			{$SubStations} = table[],
+			{$SubStationReleif} = 0,
+			{$SubShipRF} = 0,
+			{$DefenseB} = table[
+				{$Mines} = 0,
+				{$LTowers} = 0,
+				{$Sats} = 0,
+				{$Drones} = 0,
+				{$Amunition} = 0
+				]
+			]"/>-->
+		
+		
+		<!---Pull from player or faction specific global variables when the feature is ready-->
+		<!--set_value name="$FacTaxTable" exact="table[]"/>
+		<set_value name="$WareTax" exact="player.$WareTax" /-->
+	</init>
+	<!--patch>
+	</patch-->
+	<attention min="unknown">
+		<actions>
+			<!--Check if there is a local table, initiate the table as empty-->
+
+			<!--Find any changes in sector, EG: New Stations. Consider rate limiting-->
+			<find_station name="$stations" space="this.sector" multiple="true" functional="true" class="class.station"/>
+			<!--Update Local Table-->
+			<do_all exact="$stations.count" counter="$s">
+				<set_value name="$Station" exact="$stations.{$s}"/>
+				<!--Process list-->
+				<do_if value="$Station.owner == this.owner">
+					<!--This station is owned by this station's owner-->
+					<do_if value="this.LocalOTable.{$Station}?">
+						<!--TODO-->
+					</do_if>
+					<do_else>
+						<set_value name="this.$LocalOTable.{$Station}" exact="table[]"/>
+					</do_else>
+				</do_if>
+				<do_elseif value="this.$LocalSTable.{$Station}?">
+					<!--This Station is friendly or neutral with this stations owner-->
+
+					<!--Check if Grace is 0, remove grace-->
+					<do_if value="@this.$LocalSTable.{$Station}.$Grace le 0">
+						<remove_value name="this.$LocalSTable.{$Station}.$Grace"/>
+					</do_if>
+					<!--Other Logic todo-->
+
+				</do_elseif>
+				<do_elseif value="not this.$LocalSTable.{$Station}? and $Station.relationto.{this.sector.owner} ge 0">
+					<!--Station not on list, neutral or better-->
+					<do_if value="$Station.controlentity.{controlpost.manager}?">
+						<debug_text value="$Station + ' ' + $Station.controlentity.{controlpost.manager}" filter="general"/>
+						<set_value name="this.$LocalSTable.{$Station}" exact="table[
+							{'$manager'} = $Station.controlentity.{controlpost.manager},
+							{'$grace'} = 3,
+							{'$punative'} = []
+						]"/>
+					</do_if>
+					<do_else>
+						<debug_text text="'No Manager found at ' + $Station.name" filter="general"/>
+					</do_else>
+				</do_elseif>
+				<do_else>
+					<!--Station not on list, not neutral or better-->
+				</do_else>
+
+			</do_all>
+
+			<!--Taxation-->
+			<do_if value="(@this.$TaxDay lt player.age) and this.$TaxDay? and global.$TaxesInitialized">
+				<!--
+					Create a list to log total payments rather than try to submit a per station amount
+					-->
+				<do_if value="this.sector.isplayerowned">
+					<debug_text text="'Running Tax Day for '+ this.station.knownname" filter="general"/>
+				</do_if>
+				<create_list name="$payments"/>
+				<set_value name="$delinquint" exact="0"/>
+				<set_value name="$Taxtime" exact="player.age"/>
+				<set_value name="$SetList" exact="this.$LocalSTable.keys.list"/>
+				<do_all exact="$SetList.count" counter="$l">
+					<do_if value="$SetList.{$l}.exists and (not this.$LocalSTable.{$SetList.{$l}}.$Grace?) and (this.$LocalSTable.{$SetList.{$l}}.$manager.exists)">
+						<do_if value="this.$LocalSTable.{$SetList.{$l}}.$manager? and (this.isplayerowned or $SetList.{$l}.isplayerowned)">
+							<debug_text text="'Signaling For Tax: ' + this.$LocalSTable.{$SetList.{$l}}.$manager.name" filter="general"/>
+							<signal_objects object="this.$LocalSTable.{$SetList.{$l}}.$manager" param="'Tax_Collect'" param2="this"/>
+							<!--Wait for response code-->
+							<wait exact="5s">
+								<interrupt_after_time time="3s"/>
+								<interrupt>
+									<conditions>
+										<event_object_signalled object="this" param="'tax_response'"/>
+									</conditions>
+									<actions>
+										<debug_text text="'Tax Response recieved: ' + event.param3 " filter="general"/>
+										<!--
+											param1: Signal ID
+											param2: Taxed Entity
+											param3: [response code, amount, reason ]
+											
+										-->
+
+										<do_if value="event.param3.{1} == 'complete'">
+											<!--Tax Complete Log to Total Stack and continue-->
+											<do_if value="this.isplayerowned">
+												<append_to_list name="$payments" exact="event.param3.{2}"/>
+											</do_if>
+											<do_elseif value="$SetList.{$l}.isplayerowned">
+												<append_to_list name="$payments" exact="event.param3.{2}"/>
+											</do_elseif>
+											<do_else>
+												<!--Do nothing for now. FACTION CREDITS-->
+											</do_else>
+										</do_if>
+										<do_elseif value="event.param3.{1} == 'partial'">
+
+											<!--Partially Taxed Log and process the 'why'-->
+											<do_if value="this.isplayerowned">
+												<append_to_list name="$payments" exact="event.param3.{2}"/>
+												<set_value name="$delinquint" operation="add" />
+											</do_if>
+											<do_elseif value="$SetList.{$l}.isplayerowned">
+												<append_to_list name="$payments" exact="event.param3.{2}"/>
+												<set_value name="$delinquint" operation="add"/>
+											</do_elseif>
+											<do_else>
+												<!--Do nothing for now. FACTION CREDITS-->
+											</do_else>
+
+											<!--Diagnosse Response Code-->
+											<do_if value="event.param3.{3} == 'broke'">
+												<!--Slight rep penalty, Forgivable, Make it up later/or Request money from player-->
+												<!--TODO Request money from player to avoid penalty-->
+											</do_if>
+
+										</do_elseif>
+										<do_elseif value="event.param3.{1} == 'refused'">
+										
+											<!--Refused Tax-->
+											<do_if value="event.param3.{3} == 'grace'">
+												<!--Station still in grace period, maybe should check from this side, Valid reason-->
+												
+											</do_if>
+											<do_elseif value="event.param3.{3} == 'hostile'">
+												<!--Station is hostile to our faction, bypass normal reasons see if it's a faction thing or a station thing.-->
+												<do_if value="0">
+													<!--Station Hostile-->
+												</do_if>
+												<do_elseif value="0">
+													<!--Faction Hostile-->
+												</do_elseif>
+												<do_else>
+													<!--Unhandled-->
+													<debug_text text="'Unhandled parameters #3-3'" filter="general"/>
+												</do_else>
+												
+											</do_elseif>
+										</do_elseif>
+										<do_else>
+											<!--Recived unhandled response code-->
+											<!--debug_text text="'Invalid response code given: ' + event.param3.{3} + ' Please Inform Modmaker -Intended for now-'" filter="general"/-->
+											<debug_text text="'Full Response ' + event.param + '  ' + event.param2 + '  ' + event.param3" filter="general"/>
+										</do_else>
+									</actions>
+								</interrupt>
+							</wait>
+						</do_if>
+						<do_else>
+							<!--Handle player station without manager-->
+							<debug_text text="'Remind lazy-ass developer to handle stations without managers'" filter="general"/>
+						</do_else>
+					</do_if>
+					<do_elseif value="not $SetList.{$l}.exists">
+						<debug_text text="'Tried to tax a station that didn\'t exist ' + $SetList.{$l}.name " filter="general"/>
+						<remove_value name="this.$LocalSTable.{$SetList.{$l}}"/>
+					</do_elseif>
+					<do_else>
+						<do_if value="this.$LocalSTable.{$SetList.{$l}}.$Grace? and @this.$LocalSTable.{$SetList.{$l}}.$Grace gt 0">
+							<set_value name="this.$LocalSTable.{$SetList.{$l}}.$Grace" exact="1" operation="subtract"/>
+							<do_if value="this.$LocalSTable.{$SetList.{$l}}.$Grace == 0">
+								<remove_value name="this.$LocalSTable.{$SetList.{$l}}.$Grace"/>
+							</do_if>
+						</do_if>
+						<debug_text text="'Taxing signal failed for station ' + $SetList.{$l}.knownname + ' for valid reason. EG: Grace period, '" filter="general"/>
+					</do_else>
+				</do_all>
+				
+				<!--Tax Log-->
+				<do_if value="this.station.isplayerowned">
+					<!--Total and Log-->
+				</do_if>
+				<do_elseif value="not this.station.isplayerowned and $payments.count gt 0">
+					<!--Total and Log player owned stations that were taxed-->
+					<debug_text text="'Payments for sector by player owned stations, Debug log ' + $payments" filter="general"/>
+				</do_elseif>
+				
+				<!--Offset new TaxDay-->		
+				<set_value name="this.$TaxDay" exact="$Taxtime + 1h"/>
+				<debug_text text="'Next Tax Scheduled for ' + this.$TaxDay" filter="general"/>
+			</do_if>
+			<do_elseif value="not this.$TaxDay?">
+				<debug_text text="'No Tax Day Assigned for '+ this.station.knownname + ' ' + this.$TaxDay? + ', Starting Tax Day in 1h'" filter="general"/>
+				<set_value name="this.$TaxDay" exact="player.age + 1h"/>
+			</do_elseif>
+			<!--Calculate Tax Breaks-->
+			
+			<!-- Recalculate Budget -->
+
+			<!-- Distribute Funds -->
+
+			<!-- Order New Ships -->
+		</actions>
+	</attention>
+</aiscript>

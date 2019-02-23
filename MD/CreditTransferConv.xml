@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="CreditTransferConv" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="L:\SteamLibrary\steamapps\common\X4 Foundations\Loose Files\md\md.xsd">
+	<cues>
+		<cue name="Cm_RootMenu" instantiate="true">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="Cm_Root" />
+					<event_conversation_returned_to_section sectionprefix="Cm_Root" />
+				</check_any>
+			</conditions>
+			<actions>
+				<set_value name="$actor" exact="event.param2.{1}" />
+				<!--In case the player tries to jump the shark-->
+				<do_if value="not $actor.$BudgetTime?">
+					<set_value name="$actor.$BudgetTime" exact="5min"/>
+				</do_if>
+				<do_if value="not $actor.$MinBudget?">
+					<set_value name="$actor.$MinBudget" exact="100000" />
+				</do_if>
+				<do_if value="not $actor.$ManuBudget?">
+					<set_value name="$actor.$ManuBudget" exact="100000000 + $actor.$MinBudget"/>
+				</do_if>
+				<do_if value="(not global.$CMGlobal?) or (@event.param2.{2} == 'Global_T' and @global.$CMGlobal == 'Enabled')">
+					<set_value name="global.$CMGlobal" exact="'Disabled'"/>
+				</do_if>
+				<do_elseif value="global.$CMGlobal? and @global.$CMGlobal == 'Disabled'">
+					<set_value name="global.$CMGlobal" exact="'Enabled'"/>
+					<do_if value="global.$CMGT?">
+						<set_value name="global.$CMGT" exact="5min"/>
+					</do_if>
+				</do_elseif>
+				<do_if value="global.$CMGlobal == 'Enabled'">
+					<set_value name="$time" exact="global.$CMGT"/>
+				</do_if>
+				<do_else>
+					<set_value name="$time" exact="$actor.$BudgetTime"/>
+				</do_else>
+				
+				
+				<!--Build Menu-->
+				<add_player_choice position="top_left" comment="Budget" text="'Budget'" section="Cm_CreditMenu" choiceparam="[$actor]"/>
+				<add_player_choice position="top_right" comment="Current Budget" text="'Current: ' + $actor.$ManuBudget" selectable="false"/>
+				<add_player_choice position="left" comment="Time Menu" text="'Time Settings'" section="Cm_TimeMenu" selectable="false" choiceparam="[$actor]"/>
+				<add_player_choice position="right" comment="Current Time" text="'Minimum Time: ' + $time" selectable="false"/>
+				<add_player_choice position="bottom_left" comment="Global Time Toggle" text="'Global Set:' + global.$CMGlobal" selectable="false" section="Cm_RootMenu" choiceparam="[$actor, 'Global_T']"/>
+				<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" section="default" choiceparam="[$actor]"/>
+			</actions>
+		</cue>
+		<cue name="Cm_TimeMenu">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="Cm_Time" />
+					<event_conversation_returned_to_section sectionprefix="Cm_Time" />
+				</check_any>
+			</conditions>
+			<actions>
+				<do_if value="@event.param2.count gt 2">
+					<do_if value="event.param2.{2} == 'up_step'">
+						<set_value name="$step" exact="event.param2.{4}"/>
+						<set_value name="$stepFactor" exact="event.param2.{3} + 1"/>
+					</do_if>
+					<do_elseif value="event.param2.{2} == 'down_step'">
+						<set_value name="$step" exact="event.param2.{4}"/>
+						<set_value name="$stepFactor" exact="event.param2.{3} - 1"/>
+					</do_elseif>
+					<do_elseif value="event.param2.{2} == 'add_t'">
+						<set_value name="$step" exact="event.param2.{4}"/>
+						<set_value name="$stepFactor" exact="event.param2.{3}"/>
+						<set_value name="$update"/>
+					</do_elseif>
+					<do_elseif value="event.param2.{2} == 'sub_t'">
+						<set_value name="$step" exact="event.param2.{4}"/>
+						<set_value name="$stepFactor" exact="event.param2.{3}"/>
+						<set_value name="$update"/>
+					</do_elseif>
+				</do_if>
+				<do_else>
+					<set_value name="$step" exact="5min"/>
+					<set_value name="$stepFactor" exact="1"/>
+				</do_else>
+				
+				<set_value name="$EvTime" exact="($step * $stepFactor)"/>
+				
+				<do_if value="global.$CMGlobal == 'Enabled'">
+					<set_value name="$time" exact="global.CMGT"/>
+					<do_if value="$update?">
+						<set_value name="global.CMGT" exact="$time + $EvTime"/>
+						<set_value name="$time" exact="global.CMGT"/>
+					</do_if>
+				</do_if>
+				<do_else>
+					<set_value name="$time" exact="$actor.$BudgetTime"/>
+					<do_if value="$update?">
+						<set_value name="$actor.$BudgetTime" exact="$time + $EvTime"/>
+						<set_value name="$time" exact="$actor.$BudgetTime"/>
+					</do_if>
+				</do_else>
+
+				<!--Build Menu-->
+				<add_player_choice position="top_left" comment="add time" text="'Add ' + $EvTime.formatted.{'%h:%min'}" section="Cm_TimeMenu" choiceparam="[$actor, 'add_t', $stepFactor, $step]" selectable="if ($time + $EvTime lt 1h) then false else true"/>
+				<add_player_choice position="left" comment="current time" text="'Current Minimum Time ' + $time.formatted.{'%h:%min'}" selectable="false"/>
+				<add_player_choice position="bottom_left" comment="sub time" text="'Subtract ' + $EvTime.formatted.{'%h:%min'}" section="Cm_TimeMenu" choiceparam="[$actor, 'sub_t', $stepFactor, $step]" selectable="if ($time - $EvTime lt 5min) then false else true"/>
+				<add_player_choice position="top_right" comment="increase step" text="'Increase step'" section="Cm_TimeMenu" choiceparam="[$actor, 'up_step', $stepFactor, $step]" selectable="if ($stepFactor gt 9) then false else true"/>
+				<add_player_choice position="left" comment="down step" text="'Decrese Step'" section="Cm_TimeMenu" choiceparam="[$actor, 'down_step', $stepFactor, $step]" selectable="if ($stepFactor gt 1) then true else false"/>
+				<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" section="Cm_RootMenu" choiceparam="[$actor]"/>
+			</actions>
+		</cue>
+		<cue name="Cm_CreditMenu">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="Cm_Cred" />
+					<event_conversation_returned_to_section sectionprefix="Cm_Cred" />
+				</check_any>
+			</conditions>
+			<actions>
+				<!--Check for relevant blackboard variables-->
+				<set_value name="$actor" exact="event.param2.{1}" />
+				
+				<do_if value="@event.param2.count gt 2">
+					<do_if value="@event.param2.{2} == 'up_step'">
+						<set_value name="$stepfactor" exact="event.param2.{3} + 1"/>
+						<set_value name="$step" exact="event.param2.{4}"/>
+					</do_if>
+					<do_elseif value="@event.param2.{2} == 'down_step'">
+						<set_value name="$stepfactor" exact="event.param2.{3} - 1"/>
+						<set_value name="$step" exact="event.param2.{4}"/>
+					</do_elseif>
+					<do_elseif value="@event.param2.{2} == 'add'">
+						<set_value name="$stepfactor" exact="event.param2.{3}"/>
+						<set_value name="$step" exact="event.param2.{4}"/>
+						<set_value name="$actor.$ManuBudget" exact="($step * $stepfactor)" operation="add"/>
+					</do_elseif>
+					<do_elseif value="@event.param2.{2} == 'subtract'">
+						<set_value name="$stepfactor" exact="event.param2.{3}"/>
+						<set_value name="$step" exact="event.param2.{4}"/>
+						<set_value name="$actor.$ManuBudget" exact="($step * $stepfactor)" operation="subtract"/>
+					</do_elseif>
+				</do_if>
+				<do_else>
+					<set_value name="$stepfactor" exact="1"/>
+					<set_value name="$step" exact="10000000"/>
+				</do_else>
+
+				<!--Builds the Choice Tree-->
+				<add_player_choice position="top_left" comment="Add to ManuBudget" text="{1266,101} + ' ' + (($step * $stepfactor)ct).formatted.default" section="Cm_CreditMenu" choiceparam="[$actor, 'add', $stepfactor, $step]"/>
+				<add_player_choice position="left" comment="Display ManuBudget" text="{1266,102} + ' ' + (($actor.$ManuBudget)ct).formatted.default" selectable="false" />
+				<add_player_choice position="bottom_left" comment="Subtract from ManuBudget" text="{1266,103} + ' ' + (($step * $stepfactor)ct).formatted.default" section="Cm_CreditMenu" choiceparam="[$actor,'subtract', $stepfactor, $step]" selectable="if ($actor.$ManuBudget - ($step * $stepfactor)) gt $MinBudget then true else false"/>
+				<add_player_choice position="top_right" comment="Increase Step" text="{1266,104}" section="Cm_CreditMenu" choiceparam="[$actor, 'up_step', $stepfactor, $step]" selectable="if $stepfactor == 10 then false else true"/>
+				<add_player_choice position="right" comment="Decrese Step" text="{1266,105}" section="Cm_CreditMenu" choiceparam="[$actor,'down_step', $stepfactor, $step]" selectable="if $stepfactor == 1 then false else true" />
+				<add_player_choice_return position="bottom_right" comment="Back" text="{1266,106}" section="Cm_RootMenu" choiceparam="[$actor]" />
+
+			</actions>
+		</cue>
+	</cues>
+</mdscript>

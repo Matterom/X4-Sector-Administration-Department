@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<language id='44'>
+<page id="1266" title="SecAdminText" descr="SecAdminVarious" voice="no">
+	<!--LOG MESSAGES-->
+	<t id="1">$STATION$ in $SECTOR$ has had $AMOUNT$ transfered to your account. New balance is $MONEY$.</t>
+	<t id="2">$STATION$ in $SECTOR$ has had $AMOUNT1$ transfered to your account and $AMOUNT2$ transfered to it's build storage. New balance is $MONEY$.</t>
+	<t id="3">Station Transfered Credits</t>
+	<!--STATION CONVERSATIONS-->
+	<t id="101">Add</t>
+	<t id="102">Current Budget:</t>
+	<t id="103">Subtract</t>
+	<t id="104">Increase Step</t>
+	<t id="105">Decrease Step</t>
+	<t id="106">Back</t>
+	<t id="107">Sector Administration</t>
+	<t id="108">Budget Options</t>
+	<t id="109">Budget Managed By Administration</t>
+
+	<!---->
+</page>
+</language>

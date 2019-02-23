@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<aiscript name="interrupt.secadmin" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="..\..\..\Loose Files\aiscripts\aiscripts.xsd" priority="1">
+	<params>
+		<param name="debugchance" default="100" />
+	</params>
+	<interrupts>
+		<library>
+			<handler name="SecAdminAss" comment="Event Sector Administrator Assigned">
+				<conditions>
+					<event_object_signalled object="this.sector" param="'SecAdmin_Ass'"/>
+				</conditions>
+				<actions>
+					<!--Assigning a new Sector Administrator-->
+					<do_if value="event.param2? and event.param2 != 'empty'">
+						<!-- <debug_text text="'This entity is ' + this.knownname + ' he is a ' + this.controlpost.name + ' @event param2 is ' + event.param2.name" filter="general"/> -->
+						<do_if value="this == event.param2">
+							<set_value name="this.$SecAdmin" exact="event.param2"/>
+							<set_value name="this.$StartSecAdmin"/>
+						</do_if>
+						<do_elseif value="@this.$SecAdmin != event.param2 and @this.$SecAdmin == this">
+							<set_value name="this.$SecAdmin" exact="event.param2"/>
+							<debug_text text="'I am no longer a secadmin, establish cleaning'" filter="general"/>
+							<set_value name="this.$CleanSecAdmin" />
+						</do_elseif>
+						<do_else>
+							<set_value name="this.$SecAdmin" exact="event.param2"/>
+						</do_else>
+					</do_if>
+
+					<do_if value="@event.param3 == 'init'">
+						<do_if value="this.station.isfunctional">
+							<set_value name="$STvalue" exact="this.station.value"/>
+							<set_value name="$LocalTaxRate" exact="global.$taxtable.{this.sector.owner}.$prop"/>
+							<set_value name="this.$MinBudget" exact="(($STvalue)f * $LocalTaxRate)ct"/>
+							<do_if value="this.station.isplayerowned">
+								<debug_text text="this.container.name + '\'s taxable init Value: ' + this.$MinBudget.formatted.default + ' In ' + this.sector.knownname + ' Owned By ' + this.sector.owner.knownname" filter="general"/>
+							</do_if>
+						</do_if>
+					</do_if>
+				</actions>
+			</handler>
+
+			<handler name="SecAdminVT" comment="Transfers Settings from one SecAdmin to Another">
+				<conditions>
+					<event_object_signalled object="this" param="'SecAdmin_Trans'"/>
+				</conditions>
+				<actions>
+					<!--
+						Info to transfer
+						Budget
+						Settings
+						
+					-->
+				</actions>
+			</handler>
+		</library>
+	</interrupts>
+</aiscript>

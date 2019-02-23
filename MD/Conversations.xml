@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+	<diff>
+	<add sel="//cue[@name='DefaultComm']/actions/do_else[2]//do_else/do_if[@value='event.object.isplayerowned']">
+		
+		<do_if value="event.object.container.isclass.[class.station] and event.object.controlpost == controlpost.manager">
+			<!--IF SecAdmin Exists, No Option to Budget, Else Provide Budget Options-->
+			<do_if value="event.object.$SecAdmin? and @event.object.$SecAdmin.container.isplayerowned and not (@event.object.$SecAdmin == event.object)">
+				<add_player_choice_sub text="{1266,109}" section="cm_RootMenu" choiceparam="[event.object]" selectable="false"/>
+			</do_if>
+			<do_else>
+				<add_player_choice_sub text="{1266,108}" section="cm_RootMenu" choiceparam="[event.object]"/>
+			</do_else>
+			
+			
+			<!-- 
+				If This station can be a Sector Administrator
+					If Sector owned by player, or ownerless
+					Else if sector is owned by other faction pass oof {Owned by Other Faction}
+				Else if does not meet criteria.
+			-->
+			<do_if value="event.object.container.isdefencestation or event.object.container.isequipmentdock or event.object.container.isheadquarters or event.object.container.isshipyard or event.object.container.iswharf or event.object.container.istradestation">
+				<do_if value="event.object.sector.owner == faction.ownerless or event.object.sector.owner == faction.player">
+					<add_player_choice_sub text="{1266,107}" section="m_SecAdmin" choiceparam="[event.object]"/>
+				</do_if>
+				<do_elseif value="event.object.sector.owner != faction.ownerless or event.object.sector.owner != faction.player">
+					<add_player_choice_sub text="{1266,107}" section="m_SecAdmin" choiceparam="[event.object, 'oof', event.object.sector.owner]"/>
+				</do_elseif>
+				<do_else>
+					<add_player_choice_sub text="'Error Unhandled Conversation #1'" section="m_SecAdmin" selectable="false"/>
+				</do_else>
+			</do_if>
+			<do_else>
+				<add_player_choice_sub text="{1266,107} + ' Incompatable Station'" section="m_SecAdmin" selectable="false"/>
+			</do_else>
+		</do_if>
+	</add>
+</diff>

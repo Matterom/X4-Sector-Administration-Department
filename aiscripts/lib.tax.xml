@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--By Matterom-->
+<aiscript name="lib.tax" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="..\..\..\Loose Files\aiscripts\aiscripts.xsd" version="1" priority="1">
+	<params>
+		<param name="taxed" default="null"/>
+		<param name="taxing_entity" default="null"/>
+		<param name="type" default="null"/>
+		<param name="difficultyfactor" default="1" comment="The final multiplier to adjust difficulty"/>
+		<param name="Amount" default="null" comment="Amount sent that the station is allowed to pay without going into debt."/>
+		<param name="override_tax" default="null" />
+		<param name="tax_break" default="0"/>
+		<param name="tax_table" default="global.$taxtable"/>
+		<param name="debugchance" default="0" />
+	</params>
+	<attention min="unknown">
+		<actions>
+			<do_if value="$taxed.isplayerowned">
+				<set_value name="$debugchance" exact="100"/>
+			</do_if>
+			<debug_text text="'Taxed entity: ' +$taxed+ ' Taxing entity: ' +$taxing_entity+ ' Type: ' +$type+ ' Difficulty Factor: ' +$difficultyfactor+ ' Amount: ' +$Amount" filter="general" chance="$debugchance"/>
+			<!-- Planned Feature workspace
+				Example Key
+				{faction.xenon} = table[{'$flags'} = [], {'$prop'} = 0.00, {'$sales'} = 0.00, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]]
+
+
+				FLAGS:
+					Flags are special modifiers to the taxable amount and can also have effects of their own. 
+					For Example a faction station tagged with 'xenon' A: Can't be Taxed, B: Decreases the Defense Value, making it harder to over tax other factions, and C: Enables Credit Theft.
+
+					Possible Flags and Effects
+						'shrewd' = 'pays a low rate'
+
+						'tithe' = High faction hostility penalty.
+
+						'pirate' 'mob' = Pays a low rate, and their main stations take a cut. If Being Taxed by such a faction not paying taxes will irk out a HIGHER faction hostility penalty.
+
+
+				RESISTANCE:
+					Relational Modifiers for Faction logic. 
+						$DValue = Defense Value of the sector updated every hour. Gets a total value of all combat ships run by the player or faction in the sector.
+							The Value is applied to a scale relative to
+
+
+				FACTION MODIFIERS: eg $tariffs
+ 					Evaluate and multiply amount by faction modifier. Each Faction is represented by a value of 0 - 2 where 1.0 gives 100% of the tax
+
+				WARES MODIFIERS: eg $wares
+					an evaluation on the taxability of wares
+
+			-->
+			<debug_text text="'lib.tax processing a tax event for the faction ' + $taxed.sector.owner + ' and the station or ship belonging to ' + $taxed.owner" filter="general" chance="$debugchance"/>
+
+			<!--Check if faction exists in the table, if not.. apply default tax rate-->
+			<set_value name="$Gov" exact="$taxing_entity.owner"/>
+			<do_if value="not $tax_table.{$Gov}? and $override_tax == 'null'">
+				<set_value name="$override_tax" exact="0.005"/>
+			</do_if>
+
+			<!--
+				Check the type of taxation avalible, and proceed down the relevant IF tree
+				Types: 'property' 'sales' 'extortion'
+			-->
+
+			<do_if value="$type == 'property'">
+
+				<!--Evaluate Property Taxrate-->
+				<do_if value="$override_tax == 'null'">
+					<set_value name="$taxrate" exact="$override_tax"/>
+				</do_if>
+				<do_else>
+					<set_value name="$taxmod" exact="1"/>
+					<debug_text text="'Flags:' + $tax_table.{$taxed.owner}.$flags" filter="general" chance="$debugchance"/>
+					<do_if value="$tax_table.{$taxed.owner}.$flags.count gt 0">
+						<do_all exact="$tax_table.{$taxed.owner}.$flags.count" counter="$m">
+							<set_value name="$flag" exact="global.$flagtable.{$tax_table.{$taxed.owner}.$flags.{$m}}"/>
+							<!--Process flags, if the flag and by extention type exists, add the modifier to 1, The mods should be in a range of 1 to -1.-->
+							<!---->
+							<do_if value="@$flag.$type == 'prop_mod'">
+								<set_value name="$taxmod" exact="$flag.$mod" operation="add"/>
+							</do_if>
+						</do_all>
+					</do_if>
+					<!--Limit tax rate to double or nothing-->
+					<do_if value="$taxmod gt 2 or $taxmod lt 0">
+						<set_value name="$taxmod" exact="if $taxmod gt 2 then 1 else 0"/>
+					</do_if>
+
+					<set_value name="$taxrate" exact="($tax_table.{$Gov}.$prop) * $taxmod"/>
+					<debug_text text="'The Calculated taxrate for the tax interaction between ' + $Gov + ' as the land lord and ' + $taxed.owner + ' as the taxed faction is ' + $taxrate + ' with a modifier of ' + $taxmod " filter="general" chance="$debugchance"/>
+
+				</do_else>
+				
+				<!--Calculate Station Value-->
+				<set_value name="$tax" exact="(($taxed.container.value * $difficultyfactor)f * $taxrate)ct"/>
+
+				<!--Adjust for TaxBreak-->
+				<do_if value="$tax ge $tax_break">
+					<set_value name="$tax" exact="$tax_break" operation="subtract"/>
+					<set_value name="$tax_return" exact="0"/>
+				</do_if>
+				<do_else>
+					<set_value name="$tax_return" exact="(($tax_break - $tax))ct"/>
+					<set_value name="$tax" exact="0"/>
+				</do_else>
+			</do_if>
+			<do_elseif value="$type == 'sales'">
+				<!--Evaluate Sales Taxrate-->
+				<do_if value="$override_tax != 'null'">
+					<set_value name="$taxrate" exact="$override_tax"/>
+				</do_if>
+				<do_else>
+					<set_value name="$taxrate" exact="$tax_table.{$Gov}.$sales"/>
+				</do_else>
+
+				<!--Evaluate Sales Taxrate-->
+				<set_value name="$tax" exact="(($amount)f * $taxrate)ct" />
+
+				<!--Adjust for TaxBreak-->
+				<do_if value="$tax ge $tax_break">
+					<set_value name="$tax" exact="$tax_break" operation="subtract"/>
+				</do_if>
+				<do_else>
+					<set_value name="$tax" exact="0"/>
+				</do_else>
+								
+			</do_elseif>
+			<do_elseif value="$type == 'extortion'">
+				<!--TODO-->
+			</do_elseif>
+
+			<!--Resolve Tax
+				If a station, process taxing the station, check if overdraft on station, withdraw from station, and subsector, if it exists or HQ if it Exists and then finaly player if they have the funds.
+			-->
+			<debug_text text="'Resolving Tax payment: ' + $tax + ' from: ' + $taxed.owner + ' to: ' + $Gov" filter="general" chance="$debugchance"/>
+			<do_if value="$taxed.container.isclass.[class.station]">
+				<set_value name="$Response" exact="'Null'"/>
+				<set_value name="$amount" exact="'0'"/>
+				<set_value name="$reason" exact="'0'"/>
+				<do_if value="($taxed.station.money - $tax) lt (100000)Cr">
+					<do_if value="$taxed.$Overdraft?">
+						<set_value name="$overdraft" exact="$taxed.station.money - $tax"/>
+						
+						
+					</do_if>
+					<do_else>
+						<transfer_money from="$taxed.container" to="$taxing_entity.container" amount="($taxed.station.money - (100000)Cr)"/>
+						<debug_text text="'Taxed Station: '+ this.station.name + ' Tax Value: ' + $tax.formatted.default + ' Paid To: ' + $Gov + ' WARNING, STATION COUDNT AFFORD PAYMENT'" filter="general" chance="$debugchance" />
+					</do_else>
+				</do_if>
+				<do_else>
+					<transfer_money from="$taxed.container" to="$taxing_entity.container" amount="$tax"/>
+					<debug_text text="'Taxed Station: '+ this.station.name + ' Tax Value: ' + $tax.formatted.default + ' Paid To: ' + $Gov" filter="general" chance="$debugchance" />
+				</do_else>
+				
+				<!--Resolve Response Codes-->
+				
+				<signal_objects object="$taxing_entity" param="'tax_response'" param2="$taxed" param3="[$Response, $amount, $reason]"/>
+				<remove_value name="$Response"/>
+				<remove_value name="$amount"/>
+				<remove_value name="$reason"/>
+			</do_if>
+			<do_elseif value="$taxed.isclass.[class.ship]">
+				<!--Check for Master-->
+				<do_if value="$taxed.commander.exists and $taxed.commander.isclass.[class.station]">
+					<transfer_money from="$taxed.commander" to="$station.controlentity.$SecAdmin" amount="$tax"/>
+				</do_if>
+				<do_else>
+					<debug_text text="'Ship has no master'" filter="general" chance="$debugchance"/>
+				</do_else>
+			</do_elseif>
+
+			<!--Resolve After Tax Effects-->
+
+			<!--Cleanup  Variables-->
+			<debug_text text="'Lib.Tax Finished Run'" filter="general" chance="$debugchance"/>
+		</actions>
+	</attention>
+</aiscript>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<language id='39'>
+<page id="1266" title="SecAdminText" descr="SecAdminVarious" voice="no">
+	<!--LOG MESSAGES-->
+	<t id="1">$STATION$ nel $SECTOR$ ha trasferito $AMOUNT$ sul tuo conto. Il nuovo bilancio è di $MONEY$.</t>
+	<t id="2">$STATION$ nel $SECTOR$ ha trasferito $AMOUNT1$ sul tuo conto e $AMOUNT2$ trasferiti sul conto costruzioni. Il nuovo bilancio è di $MONEY$.</t>
+	<t id="3">Station Transfered Credits</t>
+	<!--STATION CONVERSATIONS-->
+	<t id="101">Aggiungi</t>
+	<t id="102">Budget Corrente:</t>
+	<t id="103">Subtract</t>
+	<t id="104">Incrementa Step</t>
+	<t id="105">Decrementa Step</t>
+	<t id="106">Indietro</t>
+	<t id="107">Amministrazione Settore</t>
+	<t id="108">Opzioni Budget</t>
+	<t id="109">Budget Managed By Administration</t>
+
+	<!---->
+</page>
+</language>

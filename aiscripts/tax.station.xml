@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<aiscript name="tax.station" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="..\..\..\Loose Files\aiscripts\aiscripts.xsd" version="1" priority="2">
+	<params>
+		<param name="debugchance" default="100"/>
+		<!--param name="PropTaxRate" default="0.05" comment="Property Tax Rate"/>
+		<param name="TransTaxRate" default="0.05" comment="Transaction Tax Rate"/-->
+	</params>
+	<interrupts>
+		<handler comment="Property Tax Payout">
+			<conditions>
+				<!--Consider running this off of another AI script instead of MD-->
+				<event_object_signalled object="player.galaxy" param="'tax_day'"/>
+				<check_value value="this.sector.owner != faction.ownerless"/>
+			</conditions>
+			<actions>
+				<!--Check to make sure the sector has a SecAdmin-->
+				<do_if value="$SecAdmin.exists and this.defensable.isfunctional">
+					<do_if value="this.station.isplayerowned">
+						<run_interrupt_script name="lib.tax">
+							<param name="taxed" value="this"/>
+							<param name="override_tax" value="0.05"/>
+							<!--param name="tax_break" value="this.$tax_break"-->
+							<!--save_retval name="tax_return" variable="$leftover"/-->
+						</run_interrupt_script>
+					</do_if>
+					<do_elseif value="this.sector.owner == faction.player">
+						<!--Pull Tax Override from SecAdmin Blackboard-->
+						<run_interrupt_script name="lib.tax">
+							<param name="taxed" value="this.station"/>
+							<!--param name="tax_break" value="this.$tax_break"-->
+							<param name="override_tax" value="0.05"/> 
+							<!--save_retval name="tax_return" variable="$leftover"/-->
+						</run_interrupt_script>
+					</do_elseif>
+					<do_elseif value="this.sector.owner == this.owner and not this.station.isplayerowned">
+						<!--TODO: FactionTax-->
+					</do_elseif>
+					<do_else>
+						<!--TODO: FactionTax-->
+					</do_else>
+					<!--Proccess BackTaxing TODO Move to lib.tax-->
+
+				</do_if>
+			</actions>
+		</handler>
+		<handler comment="Transaction Tax Payout">
+			<conditions>
+				<check_all>
+					<event_trade_completed buyer="this"/>
+					<check_value value="this.sector.owner != faction.ownerless"/>
+				</check_all>
+			</conditions>
+			<actions>
+				<set_value name="$trade" exact="event.param"/>
+				<do_if value="this.isplayerowned">
+					<debug_text text="'This Station: ' + this.name + ' Trade Amount: ' + $trade.transferedamount + ' Trade Ware: ' +  $trade.ware + ' Trade Price: ' + ($trade.unitprice * $trade.transferedamount)" filter="general"/>
+				</do_if>
+			</actions>
+		</handler>
+		<handler comment="Event Sector Administrator Assigned">
+			<conditions>
+				<event_object_signalled object="this.sector" param="SecAdmin_Ass"/>
+			</conditions>
+			<actions>
+				<!--Assigning a new Sector Administrator, He shouts out HEY I'M HERE basically-->
+				<do_if value="this == event.param2">
+					<start_script name="'administration.station'" object="this"/>
+				</do_if>
+				<do_elseif value="this.$SecAdmin? and @this.$SecAdmin == this">
+					
+				</do_elseif>
+				<do_else>
+					<set_value name="this.$SecAdmin" exact="event.param2"/>
+				</do_else>
+				<debug_text text="'Results of Player SecAdmin Find: ' + $SecAdmin " filter="general" chance="$debugchance" />
+			</actions>
+		</handler>
+	</interrupts>
+	<init>
+		<!--Look for local administration, Must be in same sector, Neutral or Better, Have a Manager-->
+		<!--TODO look for pirate stations to pay a cut, CLUSTERWIDE-->
+		<!--do_if value="this.sector.owner != faction.ownerless or this.sector.owner != faction.player">
+			<find_station name="$SecAdmin" space="this.sector" defencestation="true"/>
+			<debug_text text="'Results of NPC SecAdmin Find: ' + $SecAdmin " filter="general" chance="$debugchance" />
+		</do_if>
+		<do_elseif value="this.sector.owner == faction.player">
+			<find_station name="$SecAdmin" space="this.sector" defencestation="true" />
+			<Realistically nothing to do... for now>
+			<debug_text text="'Results of Player SecAdmin Find: ' + $SecAdmin " filter="general" chance="$debugchance" />
+		</do_elseif-->
+		<!---->
+		<!--Default Station Tax Break-->
+		<!--set_value name="$taxgrace" exact="player.age + 4h"/-->
+
+	</init>
+	<!--patch>
+	</patch-->
+	<attention min="unknown">
+		<actions>
+			<label name="start"/>
+			<wait exact="30s"/>
+			<label name="loop"/>
+			<do_if value="this.station.isfunctional">
+				<!--Recalc Min Budget-->
+				<set_value name="$STvalue" exact="this.station.value"/>
+				<set_value name="$LocalTaxRate" exact="global.$taxtable.{this.sector.owner}.$prop"/>
+				<set_value name="this.$MinBudget" exact="($STvalue)f * $LocalTaxRate"/>
+			</do_if>
+			
+			<wait exact="1h"/>
+			<resume label="loop"/>
+		</actions>
+	</attention>
+</aiscript>

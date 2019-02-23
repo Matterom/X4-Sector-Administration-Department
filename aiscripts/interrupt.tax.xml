@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<aiscript name="interrupt.tax" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="..\..\..\Loose Files\aiscripts\aiscripts.xsd" priority="1">
+	<params>
+		<param name="debugchance" default="100" />
+	 </params>
+	<interrupts>
+		<library>
+			<handler name="PropPay"	comment="Property Tax Payout">
+				<conditions>
+					<event_object_signalled object="this" param="'Tax_Collect'"/>
+				</conditions>
+				<actions>
+					<debug_text text="'Tax Attempt ' + this.station.name" filter="general"/>
+					<!--
+						param2 is the SecAdmin just in case
+						param3 is requested amount?
+						
+						'tax_response'
+						param1: Signal ID
+						param2: Taxed Entity
+						param3: [response code, amount, reason ]
+						
+					-->
+					<do_if value="not this.$SecAdmin? and (this.sector.owner == event.param2.owner)">
+						<!--This Station somehow doesn't have a secadmin May as well assign one-->
+						<set_value name="this.$SecAdmin" exact="event.param2"/>
+					</do_if>
+					<do_else>
+						<set_value name="$Rejec" exact="'WrongSecAdmin'"/>
+					</do_else>
+					
+					<do_if value="@this.$SecAdmin == event.param2">
+						<!--Amount value to translate-->
+						<do_if value="this.container.money gt this.$MinBudget">
+							<set_value name="$Amount" exact="this.$MinBudget"/>
+						</do_if>
+						<do_else>
+							<set_value name="$Amount" exact="this.container.money"/>
+						</do_else>
+						<do_if value="not this.$Grace?">
+							<run_interrupt_script name="'lib.tax'">
+								<param name="taxed" value="this"/>
+								<param name="taxing_entity" value="this.$SecAdmin"/>
+								<param name="type" value="'property'"/>
+								<param name="Amount" value="$Amount"/>
+							</run_interrupt_script>
+						</do_if>
+						<do_else>
+							<!--This station has to be in grace?.. Note not handling grace this way anymore... fix this later-->
+							<signal_objects object="event.param2" param="'tax_response'" param2="this" param3="['refused', 0, 'grace']"/>
+						</do_else>
+					</do_if>
+					<do_else>
+						<!--Send Rejection Signal-->
+						<signal_objects object="event.param2" param="'tax_response'" param2="this" param3="['refused', 0, 'wrong_secadmin']"/>
+					</do_else>
+				</actions>
+			</handler>
+			<handler name="SalesPay" comment="Transaction Tax Payout">
+				<conditions>
+					<check_all>
+						<event_trade_completed buyer="this"/>
+						<check_value value="this.sector.owner != faction.ownerless"/>
+					</check_all>
+				</conditions>
+				<actions>
+					<set_value name="$trade" exact="event.param"/>
+					<debug_text text="event.param" filter="general"/>
+					<debug_text text="'This Station: ' + this.name + ' Trade Amount: ' + $trade.transferedamount + ' Trade Ware: ' +  $trade.ware + ' Trade Price: ' + ($trade.unitprice * $trade.transferedamount)" filter="general"/>
+				</actions>
+			</handler>
+		</library>
+	</interrupts>
+</aiscript>

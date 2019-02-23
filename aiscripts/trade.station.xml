@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+
+<diff>
+
+	<!--replace sel="//aiscript/@version">"2"</replace-->
+
+	<replace sel="//params/param[@name='debugchance']">
+		<param name="debugchance" default="100"/>
+	</replace>
+	
+	<add sel="//interrupts">
+		<handler ref="PropPay"/>
+		<handler ref="SalesPay"/>
+		<handler ref="SecAdminAss"/>
+	</add>
+	
+	
+	<!--Logic For Budgeting TODO REWRITE Time conv finished, Fix this to be in ai logic-->
+	<replace sel="//interrupts/handler[1]/actions/do_if[1]" pos="after">
+        <do_if value="not @$belowbudget and (this.station.minbudget gt 0) and (event.param2 lt @this.$ManuBudget)">
+          <debug_text text="'money below budget. Money: ' + event.param2 + ' Min budget: ' + this.$ManuBudget" chance="$debugchance"/>
+          <set_value name="$belowbudget" exact="true" />
+          <do_if value="player.age" min="@$nextbudgetwarning">
+            <set_value name="$nextbudgetwarning" exact="player.age + 10min" />
+            <!-- INTERACTION: station is below budget (logbook entry added in player.interaction.budget) -->
+            <run_interrupt_script name="'player.interaction.budget'"/>
+          </do_if>
+        </do_if>
+		<do_elseif value="$ManuBudget? and not @$belowbudget and (this.station.money gt @this.$ManuBudget) and (player.age gt @$nextCheck) and not @this.$SecAdmin.isplayerowned">
+			<do_if value="@global.$CMGlobal == 'enabled'">
+				<set_value name="$nextCheck" exact="player.age + @global.$CMGT"/>
+			</do_if>
+			<do_else>
+				<do_if value="this.$BudgetTime?">
+					<set_value name="this.$BudgetTime" exact="10min"/>
+				</do_if>
+				<set_value name="$nextCheck" exact="player.age + this.$BudgetTime"/>
+			</do_else>
+			<do_if value="this.station.buildstorage.money lt this.station.buildstorage.wantedmoney">
+					<set_value name="$Excess" exact="this.station.money - this.$ManuBudget"/>
+					<set_value name="$Difference" exact="this.station.buildstorage.wantedmoney - this.station.buildstorage.money"/>
+					<set_value name="$Amount1" exact="$Excess - ($Excess / 2)"/>
+					<set_value name="$Amount2" exact="$Excess - $Amount1"/>
+					<do_if value="$Difference lt $Amount2">
+						<set_value name="$Amount1" exact="$Amount1 + ($Amount2 - $Difference)"/>
+						<set_value name="$Amount2" exact="$Difference"/>
+					</do_if>
+				    <transfer_money from="this.container" to="faction.player" amount="$Amount1"/>
+					<transfer_money from="this.container" to="this.container.buildstorage" amount="$Amount2"/>
+					<substitute_text text="$logtext" source="{1266,2}" comment="$STATION$ in $SECTOR$ has had $AMOUNT1$ transfered to your account and $AMOUNT2$ transfered to it's build storage. New balance is $MONEY$.">
+						<replace string="'$STATION$'" with="this.container.knownname" />
+						<replace string="'$SECTOR$'" with="this.sector.knownname" />
+						<replace string="'$AMOUNT1$'" with="$Amount1.formatted.default" />
+						<replace string="'$AMOUNT2$'" with="$Amount2.formatted.default" />
+						<replace string="'$MONEY$'" with="this.container.money.formatted.default" />
+					</substitute_text>
+					<write_to_logbook category="general" object="this.container" title="{1266,3}" text="$logtext" money="$Amount1" interaction="showonmap"/>
+			</do_if>
+			<do_else>
+				<do_if value="(this.station.buildstorage.wantedmoney == 0) and (this.station.buildstorage.money gt 0)">
+					<transfer_money from="this.station.buildstorage" to="this.container" amount="this.station.buildstorage.money"/>
+				</do_if>
+				<set_value name="$Amount" exact="this.station.money - this.$ManuBudget"/>
+				<transfer_money from="this.container" to="faction.player" amount="$Amount"/>
+				<substitute_text text="$logtext" source="{1266,1}" comment="$STATION$ in $SECTOR$ has had $AMOUNT$ transfered to your account. New balance is $MONEY$.">
+					<replace string="'$STATION$'" with="this.container.knownname" />
+					<replace string="'$SECTOR$'" with="this.sector.knownname" />
+					<replace string="'$AMOUNT$'" with="$Amount.formatted.default" />
+					<replace string="'$MONEY$'" with="this.container.money.formatted.default" />
+				</substitute_text>
+				<write_to_logbook category="general" object="this.container" title="{1266,3}" text="$logtext" money="$Amount" interaction="showonmap"/>
+			</do_else>
+		</do_elseif>
+	</replace>
+	
+	<add sel="//init">
+		<!--Default Station Tax Break-->
+		<!--set_value name="$taxgrace" exact="player.age + 4h"/-->
+	</add>
+
+	<!--Looped Logic-->
+	<add sel="//label[@name='loop']" pos="after">
+		<wait exact="5s"/>
+<!-- 		<debug_text text="this.container.knownname + ' Has ' + this.knownname + ' as it\'s ' + this.controlpost.name + ' and it\'s sector admin was assigned as ' + @this.$SecAdmin.knownname + ' who is assigned at ' + @this.$SecAdmin.controlpost.name" filter="general"/>
+ -->
+
+		<do_if value="this.station.isfunctional and global.$TaxesInitialized?">
+			<!--Recalc Min Budget Rework?-->
+			<set_value name="$STvalue" exact="this.station.value"/>
+			<set_value name="$LocalTaxRate" exact="global.$taxtable.{this.sector.owner}.$prop"/>
+			<set_value name="this.$MinBudget" exact="[((($STvalue)f * $LocalTaxRate)ct + 10000000ct)ct , (((this.container.productionmoney / 10000)i) * 10000)ct].max"/>
+			<do_if value="this.station.isplayerowned">
+				<debug_text text="this.container.name + '\'s taxable Value updated: ' + this.$MinBudget.formatted.default + ' in ' + this.sector + ' owned by ' + this.sector.owner" filter="general"/>
+				<debug_text text="this.container.name + ' Min Budget: ' +this.container.minbudget + ' ProductionMoney: ' +this.container.productionmoney + ' MaxBudget: ' + this.container.maxbudget" filter="general"/>
+			</do_if>
+		</do_if>
+		
+		<!--Logic if this station is a Sector Administrator-->
+		<do_if value="(this.$SecAdmin?) and (@this.$SecAdmin == this) and global.$TaxesInitialized?">
+			<run_script name="'administration.station'"/>
+		</do_if>
+		<do_elseif value="this.$CleanSecAdmin?" >
+			<!--SetRegion-->
+			<do_if value="this.$SecAdmin.owner == this.owner">
+				<set_value name="this.$SecAdmin.$LocalSTable" exact="this.$LocalSTable.clone"/>
+				<set_value name="this.$SecAdmin.$LocalOTable" exact="this.$LocalOTable.clone"/>
+			</do_if>
+			<!--Remove Region-->
+			<remove_value name="this.$LocalOTable"/>
+			<remove_value name="this.$LocalSTable"/>
+			<remove_value name="$CleanSecAdmin"/>
+		</do_elseif>
+		<do_else>
+			<do_if value="this.sector != faction.ownerless">
+			</do_if>
+		</do_else>
+	</add>
+	
+</diff>
+<!--   Trash and notes
+				<set_value name="this.$LocalSTable.$Station" exact="table[
+					{$manager} = $Station.controlentity.default, // Can be null, updated, used to check something.... i forget what.
+					{$grace} = # // if it exists, has a count down, assigned if friendly and first seen station
+					{$punative} = [[],[]] // List of lists for each infraction. Sublists looks like [infraction value, infraction reason] Value is how much is owed, reason is reason 
+				]"/>
+				
+
+		<add sel="//patch[@sinceversion='1']" pos="after" >
+		<patch sinceversion="2">
+			<do_if value="this.station.isfunctional">
+				<set_value name="$STvalue" exact="this.station.value"/>
+				<set_value name="$LocalTaxRate" exact="global.$taxtable.{this.sector.owner}.$prop"/>
+				<set_value name="this.$MinBudget" exact="($STvalue)f * $LocalTaxRate"/>
+				<do_if value="this.station.isplayerowned">
+					<debug_text text="'This Station\'s taxable Value: ' + this.$MinBudget " filter="general"/>
+				</do_if>
+			</do_if>
+		</patch>
+	</add>
+	
+	
+-->

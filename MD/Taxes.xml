@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="Taxes" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="L:\SteamLibrary\steamapps\common\X4 Foundations\Loose Files\md\md.xsd">
+	<cues>
+		<cue name="Taxinit">
+			<conditions>
+				<check_any>
+					<event_game_started/>
+					<check_all>
+						<event_game_loaded/>
+						<check_value value="not global.$TaxesInitialized?" />
+					</check_all>
+				</check_any>
+			</conditions>
+			<actions>
+			
+				<set_value name="$debugchance" exact="100"/>
+				<create_group groupname="global.$SecAdminList"/>
+				<create_group groupname="global.$SecList"/>
+				<!-- <set_value name="global.$TaxDay" exact="0"/> -->
+				
+				<!--Establish the default Tax Table-->
+				<set_value name="global.$taxtable" exact="table[
+						{faction.player} = table[{'$flags'} = [], {'$prop'} = 0.005, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.alliance} = table[{'$flags'} = [], {'$prop'} = 0.005, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.antigone} = table[{'$flags'} = [], {'$prop'} = 0.004, {'$sales'} = 0.006, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.argon} = table[{'$flags'} = [], {'$prop'} = 0.007, {'$sales'} = 0.006, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.civilian} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.criminal} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.hatikvah} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.holyorder} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.khaak} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.ministry} = table[{'$flags'} = [], {'$prop'} = 0.003, {'$sales'} = 0.002, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.ownerless} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.paranid} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.01, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.scaleplate} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.smuggler} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.teladi} = table[{'$flags'} = [], {'$prop'} = 0.003, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.visitor} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.xenon} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]]
+					]"/>
+					<!--
+						{faction.xenon} = table[{'$flags'} = [], {'$prop'} = 0.00, {'$sales'} = 0.00, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]]
+
+					-->
+				<set_value name="global.$flagtable" exact="table[
+					{'$FlagName'} = table[{'$type'} = 'prop_mod', {'$mod'} = -0.1]
+				]"/>				
+				<!--
+					Generic flags:
+					Flagtype = EG where the flag needs to go, for now, One per type slot per faction, Flags of type Special or Unique need to be handled on a flag by flag basis
+					Effect is the multiplier.
+					
+					Flag Types supported: prop_mod, sale_mod, relate_mod, aggro_mod 
+					
+				-->
+				
+				
+				<!-- Scans the Universe for active sector defense stations and marks them for Tax Collecting scripts and others -->
+				
+				<!--Gets a list of sectors-->
+				<find_sector name="$sectors" multiple="true"/>
+				
+				<do_all exact="$sectors.count" counter="$c">
+					<find_station name="$AdminSCandidate" multiple="true" class="class.station" space="$sectors.{$c}">
+						<match_any>
+							<match tradestation="true"/>
+							<match equipmentdock="true"/>
+							<match shipyard="true"/>
+							<match wharf="true"/>
+							<match defencestation="true"/>
+						</match_any>
+						<match owner="faction.player" negate="true"/>
+						<match owner="faction.xenon" negate="true"/>
+					</find_station>
+				
+					<!--Assign -->
+					<do_all exact="$AdminSCandidate.count" counter="$a">
+						<do_if value="$sectors.{$c}.owner == $AdminSCandidate.{$a}.owner">
+							<do_if value="$AdminSCandidate.{$a}.isfactionheadquarters">
+								<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+								<set_value name="$priority" exact="10"/>
+							</do_if>
+							<do_elseif value="$AdminSCandidate.{$a}.isshipyard and (@$priority lt 10)">
+								<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+								<set_value name="$priority" exact="9"/>
+							</do_elseif>
+							<do_elseif value="$AdminSCandidate.{$a}.iswharf and (@$priority lt 9)">
+								<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+								<set_value name="$priority" exact="8"/>
+							</do_elseif>
+							<do_elseif value="$AdminSCandidate.{$a}.istradestation and (@$priority lt 8)">
+								<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+								<set_value name="$priority" exact="7"/>
+							</do_elseif>
+							<do_elseif value="$AdminSCandidate.{$a}.isequipmentdock and (@$priority lt 7)">
+								<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+								<set_value name="$priority" exact="6"/>
+							</do_elseif>
+							<do_elseif value="$AdminSCandidate.{$a}.isdefencestation and (@$priority lt 6)">
+								<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+								<set_value name="$priority" exact="1"/>
+							</do_elseif>
+						</do_if>
+						<do_if value="($AdminSCandidate.count == $a) and $set?">
+							<set_value name="$set.$SecAdmin" exact="$set" />
+							<add_to_group groupname="global.$SecAdminList" object="$set.container"/>
+							<debug_text text="'Sector Admin for ' + $sectors.{$c}.knownname + ' : ' + $set.container.knownname " chance="$debugchance" filter="general"/>
+							<signal_objects object="$sectors.{$c}" param="'SecAdmin_Ass'" param2="$set" param3="'init'"/>
+						</do_if>
+						<do_elseif value="$AdminSCandidate.count == $a">
+							<signal_objects object="$sectors.{$c}" param="'SecAdmin_Ass'" param2="'empty'" param3="'init'"/>
+						</do_elseif>
+					</do_all>
+				
+					<!--Cleanup Variables-->
+					<remove_value name="$set"/>
+					<remove_value name="$priority"/>
+					<remove_value name="$AdminSCandidate"/>
+				</do_all>
+				<remove_value name="$sectors" />
+				
+
+				<debug_text text="'Taxes Initialized'" chance="$debugchance" filter="general"/>
+				<set_value name="global.$TaxesInitialized"/>
+				<signal_objects object="player.galaxy" param="'TaxInit'"/>
+			</actions>
+		</cue>
+		
+		<cue name="SASecUpdate">
+			<conditions>
+				<check_all>
+					<event_game_loaded/>
+					<check_value value="global.$TaxesInitialized"/>
+				</check_all>
+			</conditions>
+			<actions>
+				<clear_group group="@global.$SecList"/>
+				<find_sector name="$sectors" multiple="true"/>
+				<do_all exact="$sectors.count" counter="$c">
+					<add_to_group groupname="global.$SecList" object="$sectors.{$c}"/>
+				</do_all>
+			</actions>
+		</cue>
+
+		<cue name="SAReasign">
+			<conditions>
+				<event_object_destroyed object="@global.$SecAdminList"/>
+			</conditions>
+			<delay exact="5min"/>
+			<actions>
+				<set_value name="$sector" exact="event.object.sector"/>
+				
+				<!--Find new station-->
+				<find_station name="$AdminSCandidate" multiple="true" class="class.station" space="$sector">
+					<match_any>
+						<match tradestation="true"/>
+						<match equipmentdock="true"/>
+						<match shipyard="true"/>
+						<match wharf="true"/>
+						<match defencestation="true"/>
+					</match_any>
+					<match owner="faction.player" negate="true"/>
+					<match owner="faction.xenon" negate="true"/>
+				</find_station>
+				
+				<do_all exact="$AdminSCandidate.count" counter="$a" reverse="true">
+					<debug_text text="$a" filter="general"/>
+					<do_if value="$sector.owner == $AdminSCandidate.{$a}.owner">
+						<do_if value="$AdminSCandidate.{$a}.isfactionheadquarters">
+							<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+							<set_value name="$priority" exact="10"/>
+						</do_if>
+						<do_elseif value="$AdminSCandidate.{$a}.isshipyard and (@$priority lt 10)">
+							<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+							<set_value name="$priority" exact="9"/>
+						</do_elseif>
+						<do_elseif value="$AdminSCandidate.{$a}.iswharf and (@$priority lt 9)">
+							<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+							<set_value name="$priority" exact="8"/>
+						</do_elseif>
+						<do_elseif value="$AdminSCandidate.{$a}.istradestation and (@$priority lt 8)">
+							<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+							<set_value name="$priority" exact="7"/>
+						</do_elseif>
+						<do_elseif value="$AdminSCandidate.{$a}.isequipmentdock and (@$priority lt 7)">
+							<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+							<set_value name="$priority" exact="6"/>
+						</do_elseif>
+						<do_elseif value="$AdminSCandidate.{$a}.isdefencestation and (@$priority lt 6)">
+							<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+							<set_value name="$priority" exact="1"/>
+						</do_elseif>
+					</do_if>
+					<do_if value="($AdminSCandidate.count == $a) and $set?">
+						<set_value name="$set.$SecAdmin" exact="$set" />
+						<add_to_group groupname="global.$SecAdminList" object="$set.container"/>
+						<debug_text text="'Sector Admin for ' + $sector.knownname + ' : ' + $set.container.knownname " chance="$debugchance" filter="general"/>
+						<signal_objects object="$sector" param="'SecAdmin_Ass'" param2="$set" param3="'init'"/>
+					</do_if>
+					<do_elseif value="$AdminSCandidate.count == $a">
+						<signal_objects object="$sector" param="'SecAdmin_Ass'" param2="'empty'" param3="'init'"/>
+					</do_elseif>
+				</do_all>
+				
+			</actions>
+		</cue>
+		
+		<cue name="SectorChangeOwner">
+			<conditions>
+				<event_object_changed_owner object="global.$SecList"/>
+			</conditions>
+			<delay exact="1h"/>
+			<actions>
+				<set_value name="$SAList" exact="global.$SecAdminList.list"/>
+				<do_all exact="$SAList.count" counter="$c">
+					<do_if value="$SAList.sector == event.object">
+						<do_if value="$SAList.owner != event.param">
+							<find_station name="$AdminSCandidate" multiple="true" class="class.station" space="$sectors.{$c}">
+								<match_any>
+									<match tradestation="true"/>
+									<match equipmentdock="true"/>
+									<match shipyard="true"/>
+									<match wharf="true"/>
+									<match defencestation="true"/>
+								</match_any>
+								<match owner="faction.player" negate="true"/>
+								<match owner="faction.xenon" negate="true"/>
+							</find_station>
+							<do_all exact="$AdminSCandidate.count" counter="$a" reverse="true">
+								<debug_text text="$a" filter="general"/>
+								<do_if value="event.param == $AdminSCandidate.{$a}.owner">
+									<do_if value="$AdminSCandidate.{$a}.isfactionheadquarters">
+										<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+										<set_value name="$priority" exact="10"/>
+									</do_if>
+									<do_elseif value="$AdminSCandidate.{$a}.isshipyard and (@$priority lt 10)">
+										<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+										<set_value name="$priority" exact="9"/>
+									</do_elseif>
+									<do_elseif value="$AdminSCandidate.{$a}.iswharf and (@$priority lt 9)">
+										<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+										<set_value name="$priority" exact="8"/>
+									</do_elseif>
+									<do_elseif value="$AdminSCandidate.{$a}.istradestation and (@$priority lt 8)">
+										<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+										<set_value name="$priority" exact="7"/>
+									</do_elseif>
+									<do_elseif value="$AdminSCandidate.{$a}.isequipmentdock and (@$priority lt 7)">
+										<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+										<set_value name="$priority" exact="6"/>
+									</do_elseif>
+									<do_elseif value="$AdminSCandidate.{$a}.isdefencestation and (@$priority lt 6)">
+										<set_value name="$set" exact="$AdminSCandidate.{$a}.controlentity.{controlpost.manager}"/>
+										<set_value name="$priority" exact="1"/>
+									</do_elseif>
+								</do_if>
+								<do_if value="($AdminSCandidate.count == $a) and $set?">
+									<set_value name="$set.$SecAdmin" exact="$set" />
+									<add_to_group groupname="global.$SecAdminList" object="$set.container"/>
+									<debug_text text="'Sector Admin for ' + event.object.knownname + ' : ' + $set.container.knownname " chance="$debugchance" filter="general"/>
+									<signal_objects object="event.object" param="'SecAdmin_Ass'" param2="$set" param3="'init'"/>
+								</do_if>
+								<do_elseif value="$AdminSCandidate.count == $a">
+									<signal_objects object="event.object" param="'SecAdmin_Ass'" param2="'empty'" param3="'init'"/>
+								</do_elseif>
+							</do_all>
+						</do_if>
+						<break/>
+					</do_if>
+				</do_all>
+			</actions>
+		</cue>
+		
+		<cue name="FactionTaxInitSample">
+			<conditions>
+				<check_any>
+					<event_object_signalled object="player.galaxy" param="'TaxInit'"/>
+					<check_all>
+						<event_game_loaded/>
+						<check_value value="global.$TaxesInitialized?"/>
+					</check_all>
+				</check_any>
+			</conditions>
+			<actions>
+				<!--Define a flag to be added-->
+				<set_value name="global.$flagtable.{'$FlagName'}" exact="table[
+					 {'$type'} = 'prop_mod',
+					 {'$mod'} = -0.1
+				]"/>
+				
+				<!--Define a Faction NOTE: Flags/Sales partially implemented, Resist/Tariffs/Wares Not Implemented at all-->
+				<set_value name="global.$taxtable.{faction.xenon}" exact="table[
+					{'$flags'} = ['$FlagName'],
+					{'$prop'} = 0.00,
+					{'$sales'} = 0.00,
+					{'$resist'} = 1, 
+					{'$tariffs'} = table[], 
+					{'$wares'} = table[]   
+					]"/>
+			</actions>
+		</cue>
+
+		<!--Libraries-->
+		<library name="CalculatePropertyTax">
+		  <actions>
+		  </actions>
+		</library>
+	
+		<library name="EvaluateWriteoffs">
+			<actions>
+			</actions>
+		</library>
+	
+		<library name="LogTaxes">
+			<actions>
+			</actions>
+		</library>
+
+		<cue name="LogOutPropTax" instantiate="true" namespace="this">
+			<conditions>
+				<event_cue_signalled />
+			</conditions>
+			<actions>
+				<set_value name="$sector" exact="event.param" />
+				<set_value name="$amount" exact="event.param2"/>
+				<set_value name="$back_tax" exact="event.param3"/>
+				<do_if value="$back_tax gt 0">
+					<substitute_text text="$logtext" source="{1016,74}" comment="Fired">
+						<replace string="'$SECTOR$'" with="$sector.name" />
+						<replace string="'$OWNER$'" with="$sector.owner" />
+						<replace string="'$AMOUNT$'" with="$amount"/>
+						<replace string="'$BACKTAX'" with="$back_tax"/>
+					</substitute_text>
+					<write_to_logbook category="upkeep" title="$logtext" />
+					<remove_value name="$logtext" />
+				</do_if>
+				<do_else>
+					<substitute_text text="$logtext" source="{1016,74}" comment="Fired">
+						<replace string="'$SECTOR$'" with="$sector.name" />
+						<replace string="'$OWNER$'" with="$sector.owner" />
+						<replace string="'$AMOUNT$'" with="$amount"/>
+					</substitute_text>
+					<write_to_logbook category="upkeep" title="$logtext" />
+					<remove_value name="$logtext" />
+				</do_else>
+			</actions>
+		</cue>
+	</cues>
+</mdscript>
