@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<mdscript name="SpecializationUpgradeConv" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="..\..\Loose Files\md\md.xsd">
+	<cues>
+		<cue name="sp_RootMenu" instantiate="true">
+			<conditions>
+				<check_any>
+					<event_conversation_next_section sectionprefix="sp_Root" />
+					<event_conversation_returned_to_section sectionprefix="sp_Root" />
+				</check_any>
+			</conditions>
+			<actions>
+			</actions>
+		</cue>
+	</cues>
+</mdscript>		
+		

@@ -7,7 +7,10 @@
 					<event_game_started/>
 					<check_all>
 						<event_game_loaded/>
-						<check_value value="not global.$TaxesInitialized?" />
+						<check_any>
+							<check_value value="not global.$TaxesInitialized?"/>
+							<check_value value="global.$TaxesInitialized? lt 1"/>
+						</check_any>
 					</check_all>
 				</check_any>
 			</conditions>
@@ -22,19 +25,19 @@
 				<set_value name="global.$taxtable" exact="table[
 						{faction.player} = table[{'$flags'} = [], {'$prop'} = 0.005, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.alliance} = table[{'$flags'} = [], {'$prop'} = 0.005, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
-						{faction.antigone} = table[{'$flags'} = [], {'$prop'} = 0.004, {'$sales'} = 0.006, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.antigone} = table[{'$flags'} = ['$shrewd','$democratic'], {'$prop'} = 0.004, {'$sales'} = 0.006, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.argon} = table[{'$flags'} = [], {'$prop'} = 0.007, {'$sales'} = 0.006, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.civilian} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.criminal} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.hatikvah} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
-						{faction.holyorder} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.holyorder} = table[{'$flags'} = ['$tithe'], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.khaak} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
-						{faction.ministry} = table[{'$flags'} = [], {'$prop'} = 0.003, {'$sales'} = 0.002, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.ministry} = table[{'$flags'} = ['$shrewd'], {'$prop'} = 0.003, {'$sales'} = 0.002, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.ownerless} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
-						{faction.paranid} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.01, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.paranid} = table[{'$flags'} = ['$tithe'], {'$prop'} = 0.001, {'$sales'} = 0.01, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.scaleplate} = table[{'$flags'} = [], {'$prop'} = 0.001, {'$sales'} = 0.001, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.smuggler} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
-						{faction.teladi} = table[{'$flags'} = [], {'$prop'} = 0.003, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
+						{faction.teladi} = table[{'$flags'} = ['$shrewd',], {'$prop'} = 0.003, {'$sales'} = 0.003, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.visitor} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]],
 						{faction.xenon} = table[{'$flags'} = [], {'$prop'} = 0.000, {'$sales'} = 0.000, {'$resist'} = 1, {'$tariffs'} = table[], {'$wares'} = table[]]
 					]"/>
@@ -43,14 +46,19 @@
 
 					-->
 				<set_value name="global.$flagtable" exact="table[
-					{'$FlagName'} = table[{'$type'} = 'prop_mod', {'$mod'} = -0.1]
-				]"/>				
+					{'$exempt'} = table[{'$type'} = '']
+					{'$shrewd'} = table[{'$type'} = 'prop_mod', {'$mod'} = -0.1],
+					{'$tithe'} = table[{'$type'} = 'aggro_mod', {'$mod'} = 1.5],
+					{'$democratic'} = table[{'$type'} = 'resist_factor', {'$mod'} = 2, {'$add'} = 1],
+					{'$forgiving'} = table[{'$type'} = 'relate_mod', {'$add'} = 1]
+				]"/>
 				<!--
 					Generic flags:
 					Flagtype = EG where the flag needs to go, for now, One per type slot per faction, Flags of type Special or Unique need to be handled on a flag by flag basis
-					Effect is the multiplier.
+					Effect is the multiplier, additive or subtracted.
 					
-					Flag Types supported: prop_mod, sale_mod, relate_mod, aggro_mod 
+					Flag Types supported: prop_mod, sale_mod, relate_mod, aggro_mod, resist_factor,
+					modifiers = mod, add, sub, ignore
 					
 				-->
 				
@@ -121,7 +129,7 @@
 				
 
 				<debug_text text="'Taxes Initialized'" chance="$debugchance" filter="general"/>
-				<set_value name="global.$TaxesInitialized"/>
+				<set_value name="global.$TaxesInitialized" exact=""/> <!--Sets Initialized to Version-->
 				<signal_objects object="player.galaxy" param="'TaxInit'"/>
 			</actions>
 		</cue>
@@ -271,7 +279,7 @@
 			</actions>
 		</cue>
 		
-		<cue name="FactionTaxInitSample">
+<!-- 	<cue name="FactionTaxInitSample">
 			<conditions>
 				<check_any>
 					<event_object_signalled object="player.galaxy" param="'TaxInit'"/>
@@ -282,13 +290,13 @@
 				</check_any>
 			</conditions>
 			<actions>
-				<!--Define a flag to be added-->
+				<Define a flag to be added>
 				<set_value name="global.$flagtable.{'$FlagName'}" exact="table[
 					 {'$type'} = 'prop_mod',
 					 {'$mod'} = -0.1
 				]"/>
 				
-				<!--Define a Faction NOTE: Flags/Sales partially implemented, Resist/Tariffs/Wares Not Implemented at all-->
+				<Define a Faction NOTE: Flags/Sales partially implemented, Resist/Tariffs/Wares Not Implemented at all>
 				<set_value name="global.$taxtable.{faction.xenon}" exact="table[
 					{'$flags'} = ['$FlagName'],
 					{'$prop'} = 0.00,
@@ -298,7 +306,7 @@
 					{'$wares'} = table[]   
 					]"/>
 			</actions>
-		</cue>
+		</cue> -->
 
 		<!--Libraries-->
 		<library name="CalculatePropertyTax">

@@ -21,9 +21,11 @@
 			<do_if value="event.object.container.isdefencestation or event.object.container.isequipmentdock or event.object.container.isheadquarters or event.object.container.isshipyard or event.object.container.iswharf or event.object.container.istradestation">
 				<do_if value="event.object.sector.owner == faction.ownerless or event.object.sector.owner == faction.player">
 					<add_player_choice_sub text="{1266,107}" section="m_SecAdmin" choiceparam="[event.object]"/>
+					<add_player_choice_sub text="'Specialization Menu'" section="sp_RootMenu"/>
 				</do_if>
 				<do_elseif value="event.object.sector.owner != faction.ownerless or event.object.sector.owner != faction.player">
 					<add_player_choice_sub text="{1266,107}" section="m_SecAdmin" choiceparam="[event.object, 'oof', event.object.sector.owner]"/>
+					<add_player_choice_sub text="'Specialization Menu'" section="sp_RootMenu"/>
 				</do_elseif>
 				<do_else>
 					<add_player_choice_sub text="'Error Unhandled Conversation #1'" section="m_SecAdmin" selectable="false"/>

@@ -12,6 +12,7 @@
 				<!--Consider running this off of another AI script instead of MD-->
 				<event_object_signalled object="player.galaxy" param="'tax_day'"/>
 				<check_value value="this.sector.owner != faction.ownerless"/>
+				<check_value>
 			</conditions>
 			<actions>
 				<!--Check to make sure the sector has a SecAdmin-->
